@@ -717,7 +717,7 @@ input::placeholder, textarea::placeholder { color: #bbb; }
           </div>
           <div class="field">
             <label>Email <span class="req">*</span></label>
-            <input type="email" id="ind-email" placeholder="email@domain.com">
+            <input type="email" id="ind-email" placeholder="email[at]domain.com">
           </div>
           <div class="field full">
             <label>Street Address <span class="req">*</span></label>
@@ -792,7 +792,7 @@ input::placeholder, textarea::placeholder { color: #bbb; }
           </div>
           <div class="field full">
             <label>Email <span class="req">*</span></label>
-            <input type="email" id="co-email" placeholder="email@company.com">
+            <input type="email" id="co-email" placeholder="email[at]company.com">
           </div>
         </div>
       </div>
@@ -1350,7 +1350,6 @@ function clearSig() { sigCtx.clearRect(0, 0, 800, 100); }
 
 // ── SUBMIT ──
 // ── WEBHOOK CONFIG ─────────────────────────────────────────────
-// Update WEBHOOK_URL if hosting externally. For local/Tailscale use:
 const WEBHOOK_URL = 'http://100.76.202.110:5003/onboard';
 
 function collectPayload() {
@@ -1456,12 +1455,16 @@ async function submitForm() {
   const payload = collectPayload();
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(WEBHOOK_URL, {
+      signal: controller.signal,
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload)
     });
 
+    clearTimeout(timeout);
     const data = await res.json();
 
     if (data.success && data.partner_id) {
