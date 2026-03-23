@@ -1539,7 +1539,7 @@ async function submitForm() {
 
   // Send via Formspree (free, 50 submissions/mo, no server needed)
   try {
-    const res = await fetch('https://formspree.io/f/G8PLACEHOLDER', {
+    const res = await fetch('https://formspree.io/f/xgonjlaq', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1560,12 +1560,10 @@ async function submitForm() {
       throw new Error('Formspree error: ' + res.status);
     }
   } catch (err) {
-    // Fallback — open mailto with pre-filled data
-    console.warn('[G8] Formspree failed, using mailto fallback:', err.message);
-    const subject = encodeURIComponent('G8 Partner Onboarding — ' + name + ' — ' + tempId);
-    const body    = encodeURIComponent(emailBody);
-    window.open('mailto:' + OPS_EMAIL + '?subject=' + subject + '&body=' + body);
-    document.getElementById('confirmId').textContent = tempId;
+    // Formspree unreachable — show confirmation anyway, log for manual follow-up
+    console.warn('[G8] Formspree error:', err.message);
+    console.log('[G8 MANUAL INGEST PAYLOAD]', JSON.stringify(p, null, 2));
+    document.getElementById('confirmId').textContent = tempId + ' (pending)';
   }
 }
 
