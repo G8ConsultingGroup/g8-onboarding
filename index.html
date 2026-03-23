@@ -1239,7 +1239,7 @@ input::placeholder, textarea::placeholder { color: #bbb; }
 
 </main>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ── STATE ──
 let partnerType = null;
 let paymentMethod = null;
@@ -1487,3 +1487,14 @@ async function submitForm() {
 function updateTaxFields() {
   const type = document.getElementById('tax-id-type').value;
   const input = document.getElementById('tax-id-num')
+  if (type === 'ssn' || type === 'itin') {
+    input.placeholder = 'XXX-XX-XXXX';
+    input.maxLength = 11;
+  } else if (type === 'ein') {
+    input.placeholder = 'XX-XXXXXXX';
+    input.maxLength = 10;
+  }
+}
+</script>
+</body>
+</html>
