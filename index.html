@@ -1380,8 +1380,10 @@ function getPos(e, canvas) {
 function clearSig() { sigCtx.clearRect(0, 0, 800, 100); }
 
 // ── SUBMIT ──
-// ── WEBHOOK CONFIG ─────────────────────────────────────────────
-const WEBHOOK_URL = 'http://100.76.202.110:5003/onboard';
+// ── EMAIL CONFIG ────────────────────────────────────────────────
+// Option F: Form emails ops@g8consultinggroup.com on submit
+// Gmail pipeline scrubs ops@ every 15 min and auto-ingests to Airtable
+const OPS_EMAIL = 'ops@g8consultinggroup.com';
 
 function collectPayload() {
   const src = document.getElementById('intakeSource').value;
@@ -1478,40 +1480,92 @@ async function submitForm() {
   const btn = document.querySelector('.btn-gold');
   if (btn) { btn.textContent = 'Submitting…'; btn.disabled = true; }
 
-  // Show page 7 with pending state immediately
+  // Generate temp partner ID
+  const rand = String(Math.floor(Math.random()*9000)+1000);
+  const tempId = 'NP-' + now.getFullYear() + '-' + rand;
+
+  // Show confirmation immediately
   document.getElementById('confirmName').textContent = name;
-  document.getElementById('confirmId').textContent   = 'Processing…';
+  document.getElementById('confirmId').textContent   = tempId + ' (pending)';
   setPage(7);
 
-  const payload = collectPayload();
+  // Collect all form data
+  const p = collectPayload();
 
+  // Build structured email body for ops@ scraper
+  const emailBody = [
+    '=== G8 PARTNER ONBOARDING SUBMISSION ===',
+    'TEMP_ID: ' + tempId,
+    'TIMESTAMP: ' + now.toISOString(),
+    'INTAKE_SOURCE: web_form',
+    '---',
+    'PARTNER_TYPE: ' + (p.partner_type || ''),
+    'FIRST_NAME: ' + (p.first_name || ''),
+    'LAST_NAME: ' + (p.last_name || ''),
+    'BUSINESS_NAME: ' + (p.business_name || ''),
+    'DBA: ' + (p.dba || ''),
+    'BUSINESS_TYPE: ' + (p.business_type || ''),
+    'PHONE: ' + (p.phone || ''),
+    'EMAIL: ' + (p.email || ''),
+    'ADDRESS_STREET: ' + (p.address_street || ''),
+    'ADDRESS_CITY: ' + (p.address_city || ''),
+    'ADDRESS_STATE: ' + (p.address_state || ''),
+    'ADDRESS_ZIP: ' + (p.address_zip || ''),
+    'PRIMARY_CONTACT: ' + (p.primary_contact || ''),
+    'CONTACT_TITLE: ' + (p.contact_title || ''),
+    '---',
+    'TAX_ID_TYPE: ' + (p.tax_id_type || ''),
+    'TAX_CLASSIFICATION: ' + (p.tax_classification || ''),
+    'W9_CERTIFIED: ' + (p.w9_certified || false),
+    'BACKUP_WITHHOLDING: ' + (p.backup_withholding || false),
+    '---',
+    'PAYMENT_METHOD: ' + (p.payment_method || ''),
+    'BANK_NAME: ' + (p.bank_name || ''),
+    'ZELLE_CONTACT: ' + (p.zelle_contact || ''),
+    '---',
+    'SERVICE_CATEGORY: ' + (p.service_category || ''),
+    'SCOPE_OF_WORK: ' + (p.scope_of_work || ''),
+    'ENGAGEMENT_START: ' + (p.engagement_start || ''),
+    'ENGAGEMENT_END: ' + (p.engagement_end || ''),
+    'PRIMARY_CLIENT: ' + (p.primary_client || ''),
+    'SCHOOL_DBN: ' + (p.school_dbn || ''),
+    'AGREEMENT_SIGNED: ' + (p.agreement_signed || false),
+    'SIG_NAME: ' + (p.sig_name || ''),
+    'SIG_DATE: ' + (p.sig_date || ''),
+    '---',
+    'JSON_PAYLOAD: ' + JSON.stringify(p),
+    '=== END SUBMISSION ==='
+  ].join('\n');
+
+  // Send via Formspree (free, 50 submissions/mo, no server needed)
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(WEBHOOK_URL, {
-      signal: controller.signal,
-      method:  'POST',
+    const res = await fetch('https://formspree.io/f/G8PLACEHOLDER', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload)
+      body: JSON.stringify({
+        _subject: 'G8 Partner Onboarding — ' + name + ' — ' + tempId,
+        _replyto: p.email || OPS_EMAIL,
+        message:  emailBody,
+        name:     name,
+        email:    p.email || '',
+        temp_id:  tempId,
+        partner_type: p.partner_type || ''
+      })
     });
 
-    clearTimeout(timeout);
-    const data = await res.json();
-
-    if (data.success && data.partner_id) {
-      document.getElementById('confirmId').textContent = data.partner_id;
+    if (res.ok) {
+      document.getElementById('confirmId').textContent = tempId;
+      console.log('[G8] Submission sent to ops@ via Formspree');
     } else {
-      // Webhook returned error — show local fallback ID
-      const rand = String(Math.floor(Math.random()*9000)+1000);
-      document.getElementById('confirmId').textContent = 'NP-' + now.getFullYear() + '-' + rand + ' (pending sync)';
-      console.warn('[G8] Webhook error:', data.error);
+      throw new Error('Formspree error: ' + res.status);
     }
   } catch (err) {
-    // Network error (G8-02 unreachable) — show fallback, log for manual entry
-    const rand = String(Math.floor(Math.random()*9000)+1000);
-    document.getElementById('confirmId').textContent = 'NP-' + now.getFullYear() + '-' + rand + ' (offline — manual sync required)';
-    console.warn('[G8] Webhook unreachable:', err.message);
-    console.log('[G8 PAYLOAD FOR MANUAL INGEST]', JSON.stringify(payload, null, 2));
+    // Fallback — open mailto with pre-filled data
+    console.warn('[G8] Formspree failed, using mailto fallback:', err.message);
+    const subject = encodeURIComponent('G8 Partner Onboarding — ' + name + ' — ' + tempId);
+    const body    = encodeURIComponent(emailBody);
+    window.open('mailto:' + OPS_EMAIL + '?subject=' + subject + '&body=' + body);
+    document.getElementById('confirmId').textContent = tempId;
   }
 }
 
