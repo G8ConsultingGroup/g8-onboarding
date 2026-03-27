@@ -871,13 +871,56 @@ function submitForm() {
     sig_title:    document.getElementById('sig-title').value,
     sig_date:     document.getElementById('sig-date').value,
   };
-  console.log('[G8 ACH AUTH]', JSON.stringify(payload, null, 2));
+  // POST to Formspree
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
 
-  // Show confirm
-  document.getElementById('mainForm').style.display = 'none';
-  document.getElementById('confirmRef').textContent = window._formRef;
-  document.getElementById('confirmPanel').classList.add('visible');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  fetch('https://formspree.io/f/xgonjlaq', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      _subject: 'G8 ACH Authorization — ' + (payload.payee_biz || payload.payee_name) + ' — ' + payload.ref,
+      _replyto: payload.email,
+      message: [
+        '=== G8 ACH DIRECT DEPOSIT AUTHORIZATION ===',
+        'REF: '          + payload.ref,
+        'TIMESTAMP: '    + payload.timestamp,
+        'PARTNER_ID: '   + payload.partner_id,
+        'PAYEE_NAME: '   + payload.payee_name,
+        'PAYEE_BIZ: '    + payload.payee_biz,
+        'EMAIL: '        + payload.email,
+        'PHONE: '        + payload.phone,
+        'BANK_NAME: '    + payload.bank_name,
+        'ACCT_TYPE: '    + payload.acct_type,
+        'ROUTING_LAST4: '+ payload.routing_last4,
+        'ACCT_LAST4: '   + payload.acct_last4,
+        'ACCT_HOLDER: '  + payload.acct_holder,
+        'PAY_FREQ: '     + payload.pay_freq,
+        'SIG_NAME: '     + payload.sig_name,
+        'SIG_TITLE: '    + payload.sig_title,
+        'SIG_DATE: '     + payload.sig_date,
+        '=== END ACH SUBMISSION ==='
+      ].join('\n')
+    })
+  })
+  .then(res => {
+    if (res.ok) {
+      document.getElementById('mainForm').style.display = 'none';
+      document.getElementById('confirmRef').textContent = window._formRef;
+      document.getElementById('confirmPanel').classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      alert('Submission error. Please email ops@g8consultinggroup.com directly.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Authorization →';
+    }
+  })
+  .catch(() => {
+    alert('Network error. Please email ops@g8consultinggroup.com directly.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Authorization →';
+  });
 }
 
 function downloadPDF() { window.print(); }
