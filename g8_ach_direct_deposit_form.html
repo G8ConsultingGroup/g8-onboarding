@@ -756,6 +756,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('formRefNum').textContent = ref;
   window._formRef = ref;
 
+  // Auto-fill Partner ID from URL ?pid=NP-YYYY-XXXX
+  const params = new URLSearchParams(window.location.search);
+  const pid    = params.get('pid');
+  if (pid) {
+    const pidField = document.getElementById('payee-pid');
+    pidField.value    = pid;
+    pidField.readOnly = true;
+    pidField.style.background = '#f5f5f0';
+    pidField.style.color      = '#555';
+  }
+
   initCanvas();
 });
 
@@ -827,6 +838,18 @@ function clearSig() { ctx.clearRect(0, 0, 600, 56); }
 
 // ── SUBMIT ────────────────────────────────────────────────────────
 function submitForm() {
+  // Validate Partner ID first
+  const pid = document.getElementById('payee-pid').value.trim();
+  if (!pid) {
+    alert('Required: G8 Partner ID — check your onboarding email for your Partner ID (NP-YYYY-XXXX).');
+    document.getElementById('payee-pid').focus();
+    return;
+  }
+  if (!/^NP-\d{4}-\d{4}$/.test(pid)) {
+    alert('Invalid Partner ID format. Your Partner ID should look like NP-2026-0001. Check your onboarding email.');
+    document.getElementById('payee-pid').focus();
+    return;
+  }
   const required = {
     'payee-name':    'Payee full legal name',
     'payee-email':   'Email address',
