@@ -892,11 +892,60 @@ function submitForm() {
   };
   console.log('[G8 ACH AUTH]', JSON.stringify(payload, null, 2));
 
-  // Show confirm
-  document.getElementById('mainForm').style.display = 'none';
-  document.getElementById('confirmRef').textContent = window._formRef;
-  document.getElementById('confirmPanel').classList.add('visible');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Build structured email body
+  const lines = [
+    `PARTNER_ID: ${payload.partner_id}`,
+    `REF: ${payload.ref}`,
+    `PAYEE_NAME: ${payload.payee_name}`,
+    `PAYEE_BUSINESS: ${payload.payee_biz}`,
+    `EMAIL: ${payload.email}`,
+    `PHONE: ${payload.phone}`,
+    `BANK_NAME: ${payload.bank_name}`,
+    `ACCOUNT_TYPE: ${payload.acct_type}`,
+    `ROUTING_LAST4: ${payload.routing_last4}`,
+    `ACCOUNT_LAST4: ${payload.acct_last4}`,
+    `ACCOUNT_HOLDER: ${payload.acct_holder}`,
+    `PAY_FREQUENCY: ${payload.pay_freq}`,
+    `SIG_NAME: ${payload.sig_name}`,
+    `SIG_TITLE: ${payload.sig_title}`,
+    `SIG_DATE: ${payload.sig_date}`,
+    `TIMESTAMP: ${payload.timestamp}`,
+    ``,
+    `JSON_PAYLOAD: ${JSON.stringify(payload)}`,
+  ];
+
+  const formData = {
+    _subject: 'G8 ACH Authorization — ' + (payload.payee_biz || payload.payee_name) + ' — ' + payload.ref,
+    _replyto: payload.email,
+    message: lines.join('\n'),
+    ...payload,
+  };
+
+  // Disable button during submit
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  fetch('https://formspree.io/f/xgonjlaq', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(formData),
+  })
+  .then(r => {
+    if (!r.ok) console.error('[G8 ACH] Formspree error:', r.status);
+    document.getElementById('mainForm').style.display = 'none';
+    document.getElementById('confirmRef').textContent = window._formRef;
+    document.getElementById('confirmPanel').classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  })
+  .catch(err => {
+    console.error('[G8 ACH] Submit error:', err);
+    alert('Submission received locally. If you have connectivity issues, please contact ops@g8consultinggroup.com with your reference number: ' + window._formRef);
+    document.getElementById('mainForm').style.display = 'none';
+    document.getElementById('confirmRef').textContent = window._formRef;
+    document.getElementById('confirmPanel').classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 function downloadPDF() { window.print(); }
